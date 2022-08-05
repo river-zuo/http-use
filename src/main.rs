@@ -4,10 +4,13 @@ use std::collections::HashMap;
 use std::convert::Infallible;
 use std::net::SocketAddr;
 
+use chrono::{Local, TimeZone};
 use hyper::server::conn::Http;
 use hyper::service::service_fn;
 use hyper::{Body, Request, Response};
 use tokio::net::TcpListener;
+
+const DATE_FORMAT: &str = "%Y-%m-%d %H:%M:%S%.3f";
 
 async fn hello(re: Request<Body>) -> Result<Response<Body>, Infallible> {
     // re.version();
@@ -20,6 +23,7 @@ async fn hello(re: Request<Body>) -> Result<Response<Body>, Infallible> {
     //         .unwrap();
     //     return Ok(resp)
     // }
+    
     
     let s = re.uri().to_string();
     let mut params = HashMap::new();
@@ -38,11 +42,49 @@ async fn hello(re: Request<Body>) -> Result<Response<Body>, Infallible> {
         println!("time_type = {}, time_str = {}", time_type, time_str);
         // let resp = Response::builder().header("content-type", "application/json");
         match time_type {
-            "1" => println!("1111"),
-            "2" => println!("2222"),
-            _ => {}
+            "1" => {
+                // time_str 为时间戳
+                // 1659680082
+                // 1659680096469
+                // 13 
+                // 10 
+                // 毫秒戳为 13位
+                // 秒戳为   10位
+                let time_str = time_str.trim();
+                if time_str.len() == 13 {
+                    // 毫秒戳
+                    let time_num = time_str.parse().unwrap();
+                    let parse_res = Local.timestamp_millis(time_num).format(DATE_FORMAT);
+                    return Ok(Response::new(Body::from(parse_res.to_string())));
+                } else if time_str.len() == 10 {
+                    // 秒戳
+                    let time_num = time_str.parse().unwrap();
+                    let parse_res = Local.timestamp(time_num, 0).format(DATE_FORMAT);
+                    return Ok(Response::new(Body::from(parse_res.to_string())));
+                } else {
+                    // 非毫秒戳也非秒戳
+                    let mut result_build = String::new();
+                    result_build.push_str(
+                        "非毫秒戳也非秒戳,秒戳长度为10,毫秒戳长度为13,输入数据长度为:[");
+                    result_build.push_str(time_str.trim().len().to_string().as_str());
+                    result_build.push_str("]");
+                    return Ok(Response::new(Body::from(result_build)));
+                }
+            },
+            "2" => {
+                // time_str为格式化日期
+                // 如: 2022-01-02 13:22:33.111
+                let time_str = time_str.trim();
+                let time_res = Local.datetime_from_str(time_str, "%F %H:%M:%S%.3f");
+                match time_res {
+                    Ok(res) => return Ok(Response::new(Body::from(res.to_string()))),
+                    Err(err) => return Ok(Response::new(Body::from(err.to_string()))),
+                }
+            },
+            _ => return Ok(Response::new(Body::from(format!("未能识别的日期类型,time-type->[{}]", time_type)))),
         }
     }
+    // let cc = format!("{}111", "aaa");
 
     Ok(Response::new(Body::from("Hello World!")))
 }
@@ -54,6 +96,17 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // if true {
     //     let s = "aa";
     //     let ss = s.split("?").collect::<Vec<&str>>();
+    // }
+    // if true {
+    //     let arr = "cc=".split("=").filter(|f|!f.is_empty()).collect::<Vec<&str>>();
+    //     println!("arr -> {:?}", arr);
+    //     panic!()
+    // }
+
+    // if true {
+    //     let cc = format!("格式化输出-> {}, [{}]", "ccc", 11);
+    //     println!("{}", cc);
+    //     panic!()
     // }
 
     pretty_env_logger::init();
