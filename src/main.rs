@@ -58,7 +58,8 @@ pub async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     pretty_env_logger::init();
 
-    let addr: SocketAddr = ([127, 0, 0, 1], 3300).into();
+    // let addr: SocketAddr = ([127, 0, 0, 1], 3300).into();
+    let addr: SocketAddr = ([0, 0, 0, 0], 3300).into();
 
     let listener = TcpListener::bind(addr).await?;
     println!("Listening on http://{}", addr);
