@@ -29,7 +29,9 @@ async fn hello(re: Request<Body>) -> Result<Response<Body>, Infallible> {
     // }
     
     
+    
     let s = re.uri().to_string();
+    
     let mut params = HashMap::new();
     if s.contains("?") {
         let arr = s.split("?").collect::<Vec<&str>>();
@@ -60,12 +62,17 @@ async fn hello(re: Request<Body>) -> Result<Response<Body>, Infallible> {
                     let time_num = time_str.parse().unwrap();
                     let parse_res = Local.timestamp_millis(time_num).format(DATE_FORMAT);
                     // let res_0 = object! {};
-                    return Ok(Response::new(Body::from(parse_res.to_string())));
+                    let res_json = object! {code: 0, data: parse_res.to_string()};
+                    let mut resp = Response::new(Body::from(res_json.to_string()));
+                    resp.headers_mut().insert("content-type", HeaderValue::from_static("application/json"));
+                    return Ok(resp);
                 } else if time_str.len() == 10 {
                     // 秒戳
                     let time_num = time_str.parse().unwrap();
                     let parse_res = Local.timestamp(time_num, 0).format(DATE_FORMAT);
-                    return Ok(Response::new(Body::from(parse_res.to_string())));
+                    let res_json = object! {code:0, data: parse_res.to_string()};
+                    let resp = Response::new(Body::from(res_json.to_string()));
+                    return Ok(resp);
                 } else {
                     // 非毫秒戳也非秒戳
                     let mut result_build = String::new();
@@ -94,6 +101,32 @@ async fn hello(re: Request<Body>) -> Result<Response<Body>, Infallible> {
                 return Ok(res);
             },
         }
+    }
+    if let Some(_) = params.get("json-str") {
+        // hyper body中响应体作为字符串读取 https://cloud.tencent.com/developer/ask/sof/1280969
+        let body_data = hyper::body::to_bytes(re.into_body()).await.unwrap();
+        let body_data = String::from_utf8(body_data.to_vec()).unwrap();
+        
+        let data;
+        match json::parse(body_data.as_str()) {
+            Ok(inner_data) => {
+                // let inner_data = inner_data.pretty(4);
+                // data = object! {code: 0, data: format!("{}", inner_data)}
+                // let mut tmp = object! {};
+                // tmp.insert("key", "value").unwrap();
+                // tmp.insert("key", inner_data).unwrap();
+                // println!("{:?}", tmp);
+                data = inner_data
+            },
+            Err(msg) => {
+                let msg = msg.to_string();
+                data = object! {code: -1, data: msg};
+            },
+        }
+        let mut res = Response::new(Body::from(data.to_string()));
+        // todo 转换json字符串为json数据
+        res.headers_mut().insert("content-type", HeaderValue::from_static("application/json"));
+        return Ok(res);
     }
     // let cc = format!("{}111", "aaa");
 
@@ -190,3 +223,16 @@ struct Book {
 //     }
 // }
 
+#[test]
+fn test_json() {
+    
+    // let json = object! {a: 1};
+
+    let json = json::parse("{\"ccc\":1}").unwrap();
+
+    // let str = format!("{:?}", json);
+    let pretty = json.pretty(4);
+    println!("{}", pretty);
+    println!("{}", json.dump());
+
+}
